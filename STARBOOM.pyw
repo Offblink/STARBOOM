@@ -3299,34 +3299,6 @@ class TwoPlayerManager:
         except:
             pass    
         
-    def get_alive_players_average_score(self):
-        """获取存活玩家的平均分数"""
-        if not self.active:
-            return 0
-        
-        alive_scores = []
-        for i, player_obj in enumerate(self.players):
-            if player_obj.active and player_obj.lives > 0:
-                alive_scores.append(self.scores[i])
-        
-        if not alive_scores:
-            return 0
-        return sum(alive_scores) / len(alive_scores)
-
-    def get_alive_players_average_lives(self):
-        """获取存活玩家的平均生命值"""
-        if not self.active:
-            return 0
-        
-        alive_lives = []
-        for player_obj in self.players:
-            if player_obj.active and player_obj.lives > 0:
-                alive_lives.append(player_obj.lives)
-        
-        if not alive_lives:
-            return 0
-        return sum(alive_lives) / len(alive_lives)
-
     def get_alive_players_count(self):
         """获取存活玩家数量"""
         if not self.active:
@@ -3344,6 +3316,18 @@ class TwoPlayerManager:
                 max_score = max(max_score, self.scores[i])
         
         return max_score
+
+    def get_highest_alive_player_lives(self):
+        """获取存活玩家的最高生命值"""
+        if not self.active:
+            return 0
+        
+        max_lives = 0
+        for player_obj in self.players:
+            if player_obj.active and player_obj.lives > 0:
+                max_lives = max(max_lives, player_obj.lives)
+        
+        return max_lives
         
     def activate(self, mode="human"):
         """激活双人模式
@@ -3949,11 +3933,11 @@ def main():
                                 two_player_manager.update_high_scores()
             
             if two_player_manager.active:
-                # 使用存活玩家的分数
+                # 使用存活玩家的最高分数
                 if two_player_manager.get_alive_players_count() > 0:
-                    alive_avg_score = two_player_manager.get_alive_players_average_score()
-                    base_spawn_time = calculate_bomb_spawn_time(alive_avg_score)
-                    max_bombs = min(15, 1 + int(alive_avg_score / 20))
+                    highest_score = two_player_manager.get_highest_alive_player_score()
+                    base_spawn_time = calculate_bomb_spawn_time(highest_score)
+                    max_bombs = min(15, 1 + int(highest_score / 20))
             else:
                 # 单人模式
                 base_spawn_time = calculate_bomb_spawn_time(score)
@@ -3962,8 +3946,8 @@ def main():
             if current_time - last_bomb_spawn >= base_spawn_time and len(bombs) < max_bombs:
                 last_bomb_spawn = current_time
                 if two_player_manager.get_alive_players_count() > 0:
-                    alive_avg_score = two_player_manager.get_alive_players_average_score()
-                    bombs.append(Bomb(alive_avg_score, craters, True))
+                    highest_score = two_player_manager.get_highest_alive_player_score()
+                    bombs.append(Bomb(highest_score, craters, True))
                 
             
             # 更新炸弹状态
@@ -3976,7 +3960,7 @@ def main():
                 bomb.destroy_items_in_explosion(shields)
                             
                 # 爆炸结束后创建弹坑
-                if bomb.exploding and not bomb.active and alive_avg_score >= CRATER_SCORE_THRESHOLD:
+                if bomb.exploding and not bomb.active and highest_score >= CRATER_SCORE_THRESHOLD:
                     # 创建与爆炸形状和范围一致的弹坑
                     crater_radius = int(bomb.expansion_speed * 2.0)  # 弹坑半径等于爆炸最大半径
                     craters.append(Crater(bomb.x, bomb.y, crater_radius, bomb.explosion_shape))
@@ -3991,13 +3975,12 @@ def main():
                     craters.remove(crater)
             
             # 定期检查是否需要生成新爱心
-            heart_check_interval = 3.0 + math.sqrt(alive_avg_score)
+            heart_check_interval = 3.0 + math.sqrt(highest_score)
             if two_player_manager.active:
-                # 使用存活玩家的生命值
+                # 使用存活玩家的最高生命值
                 if two_player_manager.get_alive_players_count() > 0:
-                    alive_avg_lives = two_player_manager.get_alive_players_average_lives()
-                    current_heart_spawn_rate = calculate_heart_spawn_rate(alive_avg_lives)
-
+                    highest_lives = two_player_manager.get_highest_alive_player_lives()
+                    current_heart_spawn_rate = calculate_heart_spawn_rate(highest_lives)
             else:
                 # 单人模式
                 current_heart_spawn_rate = calculate_heart_spawn_rate(lives)
